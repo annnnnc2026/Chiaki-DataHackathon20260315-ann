@@ -126,6 +126,15 @@
     font-size: 18px; line-height: 1.2; }
   @media (max-width: 700px) { .rec-grid { grid-template-columns: 1fr; } }
 
+  /* Tab switcher */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn { padding: 6px 18px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--muted); transition: all .15s; }
+  .tab-btn.active-all  { background: var(--brand);   color: #fff; border-color: var(--brand); }
+  .tab-btn.active-sun  { background: #f9c74f;        color: #78350f; border-color: #f9c74f; }
+  .tab-btn.active-rain { background: var(--accent2); color: #1e3a5f; border-color: var(--accent2); }
+
   /* Staff table */
   .staff-table { width: 100%; border-collapse: collapse; }
   .staff-table th { background: #f0fdf4; font-size: 12px; font-weight: 600; color: var(--brand);
@@ -264,9 +273,14 @@
   <section class="section">
     <h2 class="section-title">熱賣品項</h2>
     <p class="section-desc">依銷售數量排名，附上售價供備料成本估算參考</p>
+    <div class="tab-bar">
+      <button class="tab-btn active-all" onclick="switchItemTab('all',this)">📊 全部</button>
+      <button class="tab-btn" onclick="switchItemTab('sun',this)">☀️ 晴天</button>
+      <button class="tab-btn" onclick="switchItemTab('rain',this)">🌧️ 雨天</button>
+    </div>
     <div class="chart-wrap">
-      <div class="chart-title">TOP 15 品項銷售量</div>
-      <canvas id="chartTopItems" style="max-height:360px;"></canvas>
+      <div class="chart-title" id="itemChartTitle">TOP 15 品項銷售量（全部）</div>
+      <canvas id="chartTopItems" style="max-height:380px;"></canvas>
     </div>
   </section>
 
@@ -522,26 +536,42 @@ new Chart(document.getElementById('chartPriceAvg'), {
   options: { indexAxis: 'y', scales: { x: { ticks: { callback: v=>'$'+v } } } }
 });
 
-// ── TOP 品項 ──
-const topItems = [["嫩雞腿套餐",188,260],["漢堡排蛋包飯",166,330],["燉牛肉套餐",155,280],["炸豬排蛋包飯",144,300],["濾掛咖啡-單包",109,35],["厚切豬排丼",108,280],["美式早餐",97,350],["美式咖啡",85,70],["拿鐵",75,100],["濾掛咖啡(銀標)-單包",70,45],["親子丼",67,240],["鮮蝦櫛瓜麵",66,260],["銷魂雞腿飯",63,260],["日式炒烏龍麵",62,280],["味噌湯烏龍麵",55,180]];
-new Chart(document.getElementById('chartTopItems'), {
+// ── TOP 品項（三分頁）──
+const itemData = {
+  all:  [["嫩雞腿套餐",188,260],["漢堡排蛋包飯",166,330],["燉牛肉套餐",155,280],["炸豬排蛋包飯",144,300],["濾掛咖啡-單包",109,35],["厚切豬排丼",108,280],["美式早餐",97,350],["美式咖啡",85,70],["拿鐵",75,100],["濾掛咖啡(銀標)-單包",70,45],["親子丼",67,240],["鮮蝦櫛瓜麵",66,260],["銷魂雞腿飯",63,260],["日式炒烏龍麵",62,280],["味噌湯烏龍麵",55,180]],
+  sun:  [["嫩雞腿套餐",159,260],["漢堡排蛋包飯",137,330],["燉牛肉套餐",120,280],["炸豬排蛋包飯",117,300],["厚切豬排丼",90,280],["濾掛咖啡-單包",86,35],["美式早餐",84,350],["拿鐵",67,100],["美式咖啡",64,70],["鮮蝦櫛瓜麵",64,260],["濾掛咖啡(銀標)-單包",58,45],["親子丼",57,240],["銷魂雞腿飯",56,260],["日式炒烏龍麵",54,280],["日式漢堡排定食",47,360]],
+  rain: [["燉牛肉套餐",35,280],["嫩雞腿套餐",29,260],["漢堡排蛋包飯",29,330],["炸豬排蛋包飯",27,300],["濾掛咖啡-單包",23,35],["美式咖啡",21,70],["厚切豬排丼",18,280],["嗆鍋麵",16,240],["美式早餐",13,350],["濾掛咖啡(銀標)-單包",12,45],["味噌湯烏龍麵",10,180],["親子丼",10,240],["炸豬排定食",9,340],["焦糖布丁",8,80],["沖繩塔可飯",8,240]],
+};
+const tabTitles = { all:'TOP 15 品項銷售量（全部）', sun:'TOP 15 品項銷售量（☀️ 晴天）', rain:'TOP 15 品項銷售量（🌧️ 雨天）' };
+const tabBarColors = { all: d => d[1] > 100 ? BRAND : BRAND_L, sun: () => '#f9c74f', rain: () => ACCENT2 };
+
+const itemChart = new Chart(document.getElementById('chartTopItems'), {
   type: 'bar',
-  data: {
-    labels: topItems.map(d=>d[0]),
-    datasets: [{
-      label: '銷售數量',
-      data: topItems.map(d=>d[1]),
-      backgroundColor: topItems.map((d,i)=> i<4 ? BRAND : BRAND_L),
-      borderRadius: 4,
-    }]
-  },
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 4 }] },
   options: {
     indexAxis: 'y',
     plugins: { legend: { display: false },
-      tooltip: { callbacks: { label: ctx => `銷量 ${ctx.raw} 份｜單價 $${topItems[ctx.dataIndex][2]}` } } },
-    scales: { x: { beginAtZero: true } }
+      tooltip: { callbacks: { label: ctx => {
+        const cur = itemChart._currentTab || 'all';
+        return `銷量 ${ctx.raw} 份｜單價 $${itemData[cur][ctx.dataIndex][2]}`;
+      }}}},
+    scales: { x: { beginAtZero: true } },
+    animation: { duration: 300 }
   }
 });
+
+function switchItemTab(tab, btn) {
+  itemChart._currentTab = tab;
+  const d = itemData[tab];
+  itemChart.data.labels = d.map(x=>x[0]);
+  itemChart.data.datasets[0].data = d.map(x=>x[1]);
+  itemChart.data.datasets[0].backgroundColor = d.map((x,i) => tabBarColors[tab](x,i));
+  itemChart.update();
+  document.getElementById('itemChartTitle').textContent = tabTitles[tab];
+  document.querySelectorAll('.tab-btn').forEach(b => b.className = 'tab-btn');
+  btn.className = `tab-btn active-${tab}`;
+}
+switchItemTab('all', document.querySelector('.tab-btn'));
 
 // ── 品項組合 ──
 const pairs = [{"a":"嫩雞腿套餐","b":"炸豬排蛋包飯","count":15},{"a":"濾掛咖啡(銀標)-單包","b":"濾掛咖啡-單包","count":15},{"a":"嫩雞腿套餐","b":"燉牛肉套餐","count":14},{"a":"厚切豬排丼","b":"嫩雞腿套餐","count":13},{"a":"厚切豬排丼","b":"美式早餐","count":13},{"a":"漢堡排蛋包飯","b":"炸豬排蛋包飯","count":12},{"a":"嫩雞腿套餐","b":"漢堡排蛋包飯","count":12},{"a":"厚切豬排丼","b":"鮮蝦櫛瓜麵","count":11}];
