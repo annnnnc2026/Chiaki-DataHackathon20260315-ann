@@ -1,0 +1,22 @@
+{
+  "name": "chiaki-datahackathon-tiger",
+  "version": "1.0.0",
+  "description": "虎菇婆餐廳向量資料庫 - RAG 索引建置",
+  "type": "module",
+  "scripts": {
+    "build:index": "tsx scripts/build-tiger-index.ts"
+  },
+  "dependencies": {
+    "@orama/orama": "^3.0.0",
+    "@xenova/transformers": "^2.17.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
