@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>虎菇婆餐廳 · 營運分析報告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand: #2d6a4f;
+    --brand-light: #52b788;
+    --accent: #f4845f;
+    --accent2: #74c2e1;
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --border: #e8e8e8;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --rain: #74c2e1;
+    --sun: #f9c74f;
+  }
+  body { font-family: "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+
+  /* Layout */
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* Header */
+  .report-header { padding: 56px 0 40px; border-bottom: 2px solid var(--brand); margin-bottom: 48px; }
+  .report-header h1 { font-size: 28px; font-weight: 700; color: var(--brand); letter-spacing: .03em; }
+  .report-header .subtitle { color: var(--muted); margin-top: 6px; font-size: 13px; }
+  .report-header .meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .report-header .meta span { font-size: 12px; color: var(--muted); }
+  .report-header .meta strong { color: var(--text); }
+
+  /* Section */
+  .section { margin-bottom: 56px; }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--brand); margin-bottom: 4px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .section-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; margin-top: 4px; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 0; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 22px; }
+  .kpi-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .kpi-card .value { font-size: 28px; font-weight: 700; color: var(--brand); margin: 4px 0 2px; }
+  .kpi-card .sub { font-size: 11px; color: var(--muted); }
+
+  /* Chart containers */
+  .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 24px; }
+  .chart-wrap canvas { max-height: 280px; }
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+  @media (max-width: 700px) {
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* Heatmap */
+  .heatmap-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .heatmap-table th { padding: 4px 6px; text-align: center; color: var(--muted); font-weight: 500; }
+  .heatmap-table td { padding: 4px 6px; text-align: center; border-radius: 4px; min-width: 36px;
+    font-size: 10px; font-weight: 500; }
+
+  /* Item pairs */
+  .pairs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .pair-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .pair-rank { font-size: 18px; font-weight: 700; color: var(--border); min-width: 28px; }
+  .pair-items { flex: 1; }
+  .pair-items .name { font-size: 13px; font-weight: 600; }
+  .pair-items .plus { font-size: 11px; color: var(--muted); margin: 2px 0; }
+  .pair-badge { background: var(--brand); color: #fff; border-radius: 12px;
+    padding: 2px 10px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  /* Rain comparison */
+  .rain-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .rain-card { border-radius: 10px; padding: 20px 22px; }
+  .rain-card.sun { background: #fffbeb; border: 1px solid #fde68a; }
+  .rain-card.rain { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .rain-card .icon { font-size: 22px; margin-bottom: 8px; }
+  .rain-card .big { font-size: 26px; font-weight: 700; margin: 4px 0; }
+  .rain-card .row { display: flex; justify-content: space-between; font-size: 12px;
+    color: var(--muted); margin-top: 4px; }
+  @media (max-width: 600px) { .rain-compare { grid-template-columns: 1fr; } }
+
+  /* Item diff table */
+  .diff-table { width: 100%; border-collapse: collapse; }
+  .diff-table th { font-size: 11px; color: var(--muted); text-align: left; padding: 4px 8px;
+    border-bottom: 1px solid var(--border); }
+  .diff-table td { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid #f3f4f6; }
+  .diff-table .bar-cell { position: relative; }
+  .diff-bar { height: 8px; border-radius: 4px; display: inline-block; }
+  .tag-rain { background: #dbeafe; color: #1d4ed8; padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+  .tag-sun  { background: #fef3c7; color: #92400e; padding: 1px 7px; border-radius: 10px; font-size: 10px; }
+
+  /* Pricing */
+  .price-insight { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px;
+    padding: 18px 22px; margin-top: 16px; }
+  .price-insight h4 { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 10px; }
+  .price-insight ul { list-style: none; }
+  .price-insight li { font-size: 12px; padding: 4px 0; padding-left: 16px; position: relative; color: #374151; }
+  .price-insight li::before { content: "→"; position: absolute; left: 0; color: var(--brand-light); }
+
+  /* CNY */
+  .cny-day-table { width: 100%; border-collapse: collapse; }
+  .cny-day-table th { font-size: 11px; color: var(--muted); padding: 6px 12px; text-align: left;
+    border-bottom: 1px solid var(--border); }
+  .cny-day-table td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
+  .cny-day-table .closed { color: #dc2626; font-weight: 600; }
+  .closed-row td { background: #fef2f2; }
+
+  /* Recommendations */
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .rec-card h4 { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px; }
+  .rec-card ul { list-style: none; }
+  .rec-card li { font-size: 12px; padding: 4px 0 4px 16px; position: relative; color: #374151;
+    border-bottom: 1px solid #f3f4f6; }
+  .rec-card li:last-child { border-bottom: none; }
+  .rec-card li::before { content: "·"; position: absolute; left: 4px; color: var(--brand-light);
+    font-size: 18px; line-height: 1.2; }
+  @media (max-width: 700px) { .rec-grid { grid-template-columns: 1fr; } }
+
+  /* Staff table */
+  .staff-table { width: 100%; border-collapse: collapse; }
+  .staff-table th { background: #f0fdf4; font-size: 12px; font-weight: 600; color: var(--brand);
+    padding: 8px 12px; text-align: left; }
+  .staff-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f3f4f6; }
+  .staff-table tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .badge-high { background: #fef2f2; color: #dc2626; }
+  .badge-mid  { background: #fffbeb; color: #d97706; }
+  .badge-low  { background: #f0fdf4; color: #16a34a; }
+
+  /* Footer */
+  .report-footer { text-align: center; font-size: 11px; color: var(--muted);
+    padding-top: 40px; border-top: 1px solid var(--border); margin-top: 56px; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <header class="report-header">
+    <h1>虎菇婆餐廳 · 營運分析報告</h1>
+    <p class="subtitle">以訂單資料為基礎，提供定價策略、備料規劃與天氣應對建議</p>
+    <div class="meta">
+      <span>資料期間：<strong>2025年11月 ～ 2026年2月</strong></span>
+      <span>分析天數：<strong>82 個營業日</strong></span>
+      <span>報告日期：<strong>2026年3月</strong></span>
+    </div>
+  </header>
+
+  <!-- 1. 總覽 KPI -->
+  <section class="section">
+    <h2 class="section-title">整體營運總覽</h2>
+    <p class="section-desc">2025/11/24 – 2026/02/22，完整三個月資料</p>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="label">總訂單數</div>
+        <div class="value">1,871</div>
+        <div class="sub">日均 22.8 筆</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">總營收</div>
+        <div class="value">$852,599</div>
+        <div class="sub">日均 $10,397</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">平均客單價</div>
+        <div class="value">$455</div>
+        <div class="sub">11月$395 → 2月$532（＋35%）</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">週日日均訂單</div>
+        <div class="value">31.3</div>
+        <div class="sub">比平日高 55%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">雨天客單折損</div>
+        <div class="value">－$29</div>
+        <div class="sub">晴天$461 vs 雨天$432</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">春節復業首日</div>
+        <div class="value">30 筆</div>
+        <div class="sub">初四（2/20）立即回溫</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. 月份趨勢 -->
+  <section class="section">
+    <h2 class="section-title">月份趨勢</h2>
+    <p class="section-desc">客單價持續成長，2月春節效應拉高平均消費</p>
+    <div class="chart-grid-2">
+      <div class="chart-wrap">
+        <div class="chart-title">每月日均營收（元）</div>
+        <canvas id="chartMonthlyRevenue"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">平均客單價趨勢（元）</div>
+        <canvas id="chartMonthlyTicket"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 星期 + 時段 -->
+  <section class="section">
+    <h2 class="section-title">星期 &amp; 時段分析</h2>
+    <p class="section-desc">週日午後最擠、週三客單最高；備料量與排班可依此調整</p>
+    <div class="chart-grid-2" style="margin-bottom:16px;">
+      <div class="chart-wrap">
+        <div class="chart-title">各星期幾 · 日均訂單數</div>
+        <canvas id="chartWeekdayOrders"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">各星期幾 · 平均客單價（元）</div>
+        <canvas id="chartWeekdayTicket"></canvas>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">各時段平均訂單數（每日）</div>
+      <canvas id="chartHourly"></canvas>
+    </div>
+    <div class="chart-wrap" style="margin-top:16px; overflow-x:auto;">
+      <div class="chart-title">訂單熱力圖（星期 × 時段）</div>
+      <table class="heatmap-table" id="heatmapTable"></table>
+    </div>
+  </section>
+
+  <!-- 4. 定價策略 -->
+  <section class="section">
+    <h2 class="section-title">定價策略分析</h2>
+    <p class="section-desc">客單價雙峰結構：主力客群集中 $201–400，高消費族群有明確需求</p>
+    <div class="chart-grid-2">
+      <div class="chart-wrap">
+        <div class="chart-title">客單價區間分布</div>
+        <canvas id="chartPriceBand"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">各區間平均客單價（元）</div>
+        <canvas id="chartPriceAvg"></canvas>
+      </div>
+    </div>
+    <div class="price-insight">
+      <h4>定價策略建議</h4>
+      <ul>
+        <li><strong>主力客群（$201–400，佔44%）</strong>：以「套餐完整感」為核心，套餐＋飲料設計在 $320–380 最具黏性，避免拆件讓客人自選而降低客單</li>
+        <li><strong>中段升級區（$401–600，佔17%）</strong>：現有客戶願意加點——建議設計「加 $50 升級」選項（例：加蛋、加湯、升大份），可將 $300 套餐推升到 $350+</li>
+        <li><strong>高客單族群（$800+，佔10%，均消 $1,241）</strong>：通常為多人聚餐或外帶大量咖啡豆，建議推出「咖啡豆禮盒組合」明碼標價，讓這類訂單更容易複製</li>
+        <li><strong>低消群（$0–200，佔18%）</strong>：主要為單點飲料或加購品，此族群不建議刺激提升，但可設定低消門檻（例：平日最低消費 $150）以維持翻桌效率</li>
+        <li><strong>APP vs 櫃台</strong>：快一點點餐均客單 $429，現場櫃台 $516——現場點餐多了 $87，可能因為員工主動推薦加購。建議訓練員工在 APP 出單後仍主動詢問加點</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. 熱賣品項 -->
+  <section class="section">
+    <h2 class="section-title">熱賣品項</h2>
+    <p class="section-desc">依銷售數量排名，附上售價供備料成本估算參考</p>
+    <div class="chart-wrap">
+      <div class="chart-title">TOP 15 品項銷售量</div>
+      <canvas id="chartTopItems" style="max-height:360px;"></canvas>
+    </div>
+  </section>
+
+  <!-- 6. 品項組合 -->
+  <section class="section">
+    <h2 class="section-title">熱門品項組合</h2>
+    <p class="section-desc">同一訂單中最常同時出現的配對，可用於設計套餐或推薦話術</p>
+    <div class="pairs-grid" id="pairsGrid"></div>
+  </section>
+
+  <!-- 7. 天氣影響 -->
+  <section class="section">
+    <h2 class="section-title">天氣影響分析</h2>
+    <p class="section-desc">資料期間20.3%時段有雨；雨天訂單減少且客單下滑，品項偏好明顯位移</p>
+    <div class="rain-compare">
+      <div class="rain-card sun">
+        <div class="icon">☀️</div>
+        <div style="font-size:12px;color:#92400e;font-weight:600;">晴天</div>
+        <div class="big" style="color:#d97706;">1,541 筆</div>
+        <div class="row"><span>平均客單</span><strong style="color:#92400e;">$461</strong></div>
+        <div class="row"><span>佔訂單比</span><strong>82.4%</strong></div>
+      </div>
+      <div class="rain-card rain">
+        <div class="icon">🌧️</div>
+        <div style="font-size:12px;color:#1d4ed8;font-weight:600;">雨天</div>
+        <div class="big" style="color:#1d4ed8;">330 筆</div>
+        <div class="row"><span>平均客單</span><strong style="color:#1d4ed8;">$432</strong></div>
+        <div class="row"><span>客單折損</span><strong style="color:#dc2626;">－$29（－6.3%）</strong></div>
+      </div>
+    </div>
+    <div class="chart-grid-2">
+      <div class="chart-wrap">
+        <div class="chart-title">☔ 雨天更常點的品項</div>
+        <table class="diff-table">
+          <thead><tr><th>品項</th><th>雨天%</th><th>晴天%</th></tr></thead>
+          <tbody id="rainItemsTop"></tbody>
+        </table>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">☀️ 晴天更常點的品項</div>
+        <table class="diff-table">
+          <thead><tr><th>品項</th><th>晴天%</th><th>雨天%</th></tr></thead>
+          <tbody id="rainItemsBot"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="price-insight" style="background:#eff6ff;border-color:#bfdbfe;margin-top:16px;">
+      <h4 style="color:#1d4ed8;">🚀 UberEats 導入建議</h4>
+      <ul>
+        <li>目前資料中無 UberEats 訂單，雨天訂單流失約 <strong>20%</strong> 可能有部份來自「想點外送但沒有管道」</li>
+        <li>雨天特別暢銷的品項（燉牛肉套餐、嗆鍋麵）具高單價且重口味，非常適合作為外送主打</li>
+        <li>建議：雨天預報時在 UberEats 限時下架「不耐運送」的品項（如鮮蝦櫛瓜麵），主推湯品與丼飯</li>
+        <li>外送包裝成本估算：建議將外送最低消費設定在 $280 以上，確保毛利率</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8. 春節分析 -->
+  <section class="section">
+    <h2 class="section-title">春節分析</h2>
+    <p class="section-desc">2026年春節：除夕 2/16（週一），初一–初三公休，初四 2/20 復業</p>
+    <div class="chart-grid-2" style="margin-bottom:16px;">
+      <div class="chart-wrap">
+        <div class="chart-title">春節期間每日訂單與營收</div>
+        <canvas id="chartCnyDaily"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">春節 vs 平時 品項點選率比較</div>
+        <canvas id="chartCnyItems"></canvas>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">春節各日明細</div>
+      <table class="cny-day-table">
+        <thead><tr><th>日期</th><th>營業狀態</th><th>訂單數</th><th>日營收</th><th>均客單</th><th>備注</th></tr></thead>
+        <tbody id="cnyDayTable"></tbody>
+      </table>
+    </div>
+    <div class="price-insight" style="margin-top:16px;">
+      <h4>明年春節備料建議</h4>
+      <ul>
+        <li><strong>年前（2/13 Fri）</strong>備料量建議 ×1.3，尾牙/聚餐客群消費力強</li>
+        <li><strong>復業首日（初四）</strong>備料量建議 ×1.5：資料顯示立即回彈至 30 筆，不要讓備料跟不上</li>
+        <li><strong>春節爆量品項</strong>：鮮蝦櫛瓜麵（點選率 3.7× 平常）、沖繩塔可飯（3.9×）、厚切豬排丼（1.7×）需特別備足</li>
+        <li><strong>春節降溫品項</strong>：燉牛肉套餐平時是主力，春節時點選率反而下降，可適量減少</li>
+        <li><strong>公休天數</strong>：初一–初三三天，初四復業，建議公告貼在門口及 APP 首頁</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 9. 給員工的排班備料表 -->
+  <section class="section">
+    <h2 class="section-title">員工排班 &amp; 備料參考</h2>
+    <p class="section-desc">依數據制定的每週備料與人力建議，供廚房主管參考</p>
+    <div class="rec-grid" style="margin-bottom:16px;">
+      <div class="rec-card">
+        <h4>📅 排班建議</h4>
+        <ul>
+          <li>週日 12–14 時、18–19 時為雙尖峰，建議增加 1 人手（含備餐與收拾）</li>
+          <li>週三、週四客單價最高（$503–515），代表大單偏多，廚房需預留製作時間</li>
+          <li>週一、週二相對平穩，適合安排清洗、盤點、員工休假</li>
+          <li>雨天預報日：外帶比例上升 13%→16%，建議多備外帶容器與袋子</li>
+        </ul>
+      </div>
+      <div class="rec-card">
+        <h4>📦 每週必備 TOP 5</h4>
+        <ul>
+          <li><strong>嫩雞腿套餐</strong>：全期最高銷量（188份），每日備量建議 8–12 份</li>
+          <li><strong>漢堡排蛋包飯</strong>：第二名（166份），週末需求明顯更大</li>
+          <li><strong>燉牛肉套餐</strong>：雨天增加 2.9%，天氣預報雨天時多備 2–3 份</li>
+          <li><strong>炸豬排蛋包飯</strong>：春節爆量首位（12.8%），年節前加倍備料</li>
+          <li><strong>濾掛咖啡</strong>：109 份，屬「一次買多包」行為，建議常態備貨</li>
+        </ul>
+      </div>
+    </div>
+    <table class="staff-table">
+      <thead>
+        <tr><th>時段</th><th>訂單壓力</th><th>重點品項</th><th>人力建議</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>10–11 時</td><td><span class="badge badge-low">低</span></td><td>美式早餐、咖啡</td><td>1人開店備料</td></tr>
+        <tr><td>11–12 時</td><td><span class="badge badge-mid">中</span></td><td>早午餐、套餐</td><td>2人</td></tr>
+        <tr><td>12–14 時</td><td><span class="badge badge-high">高峰</span></td><td>全品項，丼飯最多</td><td>3人（平日）/ 4人（週末）</td></tr>
+        <tr><td>14–17 時</td><td><span class="badge badge-mid">中</span></td><td>麵食、下午茶飲品</td><td>2人</td></tr>
+        <tr><td>17–18 時</td><td><span class="badge badge-mid">中</span></td><td>晚餐準備</td><td>2人</td></tr>
+        <tr><td>18–20 時</td><td><span class="badge badge-high">高峰</span></td><td>定食、套餐為主</td><td>3人（平日）/ 4人（週末）</td></tr>
+        <tr><td>20–21 時</td><td><span class="badge badge-low">低</span></td><td>甜點、咖啡</td><td>1–2人收尾</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="report-footer">
+    虎菇婆餐廳 · 資料分析報告 · 2026年3月 ·
+    資料來源：POS訂單系統（2025/11–2026/02）＋ 板橋氣象站 ＋ 永和降雨資料
+  </footer>
+</div>
+
+<script>
+const BRAND = '#2d6a4f';
+const BRAND_L = '#52b788';
+const ACCENT = '#f4845f';
+const ACCENT2 = '#74c2e1';
+const MUTED = '#9ca3af';
+
+Chart.defaults.font.family = "'Noto Sans TC','PingFang TC',system-ui,sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#6b7280';
+Chart.defaults.plugins.legend.display = false;
+
+// ── 月份 ──
+new Chart(document.getElementById('chartMonthlyRevenue'), {
+  type: 'bar',
+  data: {
+    labels: ['11月','12月','1月','2月'],
+    datasets: [{
+      data: [9420,9459,10527,11779],
+      backgroundColor: [BRAND_L,BRAND_L,BRAND_L,BRAND],
+      borderRadius: 6,
+    }]
+  },
+  options: { scales: { y: { beginAtZero: true, ticks: { callback: v=>'$'+v.toLocaleString() } } } }
+});
+new Chart(document.getElementById('chartMonthlyTicket'), {
+  type: 'line',
+  data: {
+    labels: ['11月','12月','1月','2月'],
+    datasets: [{
+      data: [395,426,447,532],
+      borderColor: ACCENT, backgroundColor: ACCENT+'22',
+      fill: true, tension: 0.35, pointRadius: 5, pointBackgroundColor: ACCENT,
+    }]
+  },
+  options: { scales: { y: { beginAtZero: false, min: 350, ticks: { callback: v=>'$'+v } } } }
+});
+
+// ── 星期 ──
+const wdLabels = ['週一','週二','週三','週四','週五','週六','週日'];
+const wdColors = wdLabels.map((_, i) => i >= 5 ? BRAND : BRAND_L);
+new Chart(document.getElementById('chartWeekdayOrders'), {
+  type: 'bar',
+  data: { labels: wdLabels, datasets: [{ data: [20.2,20.1,19.1,19.3,20.3,27.1,31.3],
+    backgroundColor: wdColors, borderRadius: 5 }] },
+  options: { scales: { y: { beginAtZero: false, min: 14 } } }
+});
+new Chart(document.getElementById('chartWeekdayTicket'), {
+  type: 'bar',
+  data: { labels: wdLabels, datasets: [{ data: [412,402,515,503,423,469,479],
+    backgroundColor: wdColors, borderRadius: 5 }] },
+  options: { scales: { y: { beginAtZero: false, min: 350, ticks: { callback: v=>'$'+v } } } }
+});
+
+// ── 時段 ──
+new Chart(document.getElementById('chartHourly'), {
+  type: 'bar',
+  data: {
+    labels: [10,11,12,13,14,15,16,17,18,19,20,21].map(h=>`${h}時`),
+    datasets: [{
+      data: [0.40,2.17,3.39,2.67,1.94,1.43,1.17,2.04,3.46,2.93,0.93,0.24],
+      backgroundColor: [10,11,12,13,14,15,16,17,18,19,20,21].map(h =>
+        (h===12||h===18) ? BRAND : (h>=11&&h<=14||h>=17&&h<=20) ? BRAND_L : MUTED),
+      borderRadius: 4,
+    }]
+  },
+  options: { scales: { y: { beginAtZero: true, title: { display: true, text: '平均訂單筆數' } } } }
+});
+
+// ── 熱力圖 ──
+const heatmapData = [{"weekday":0,"hour":2,"count":1},{"weekday":0,"hour":11,"count":21},{"weekday":0,"hour":12,"count":37},{"weekday":0,"hour":13,"count":28},{"weekday":0,"hour":14,"count":18},{"weekday":0,"hour":15,"count":21},{"weekday":0,"hour":16,"count":21},{"weekday":0,"hour":17,"count":26},{"weekday":0,"hour":18,"count":40},{"weekday":0,"hour":19,"count":35},{"weekday":0,"hour":20,"count":11},{"weekday":0,"hour":21,"count":3},{"weekday":1,"hour":4,"count":1},{"weekday":1,"hour":10,"count":28},{"weekday":1,"hour":11,"count":19},{"weekday":1,"hour":12,"count":27},{"weekday":1,"hour":13,"count":16},{"weekday":1,"hour":14,"count":15},{"weekday":1,"hour":15,"count":11},{"weekday":1,"hour":16,"count":16},{"weekday":1,"hour":17,"count":21},{"weekday":1,"hour":18,"count":36},{"weekday":1,"hour":19,"count":39},{"weekday":1,"hour":20,"count":6},{"weekday":1,"hour":21,"count":5},{"weekday":1,"hour":22,"count":1},{"weekday":2,"hour":10,"count":1},{"weekday":2,"hour":11,"count":23},{"weekday":2,"hour":12,"count":31},{"weekday":2,"hour":13,"count":21},{"weekday":2,"hour":14,"count":20},{"weekday":2,"hour":15,"count":7},{"weekday":2,"hour":16,"count":9},{"weekday":2,"hour":17,"count":18},{"weekday":2,"hour":18,"count":33},{"weekday":2,"hour":19,"count":38},{"weekday":2,"hour":20,"count":7},{"weekday":2,"hour":21,"count":2},{"weekday":3,"hour":11,"count":14},{"weekday":3,"hour":12,"count":19},{"weekday":3,"hour":13,"count":15},{"weekday":3,"hour":14,"count":11},{"weekday":3,"hour":15,"count":9},{"weekday":3,"hour":16,"count":5},{"weekday":3,"hour":17,"count":16},{"weekday":3,"hour":18,"count":17},{"weekday":3,"hour":19,"count":20},{"weekday":3,"hour":20,"count":9},{"weekday":4,"hour":10,"count":1},{"weekday":4,"hour":11,"count":21},{"weekday":4,"hour":12,"count":49},{"weekday":4,"hour":13,"count":25},{"weekday":4,"hour":14,"count":19},{"weekday":4,"hour":15,"count":20},{"weekday":4,"hour":16,"count":12},{"weekday":4,"hour":17,"count":28},{"weekday":4,"hour":18,"count":43},{"weekday":4,"hour":19,"count":31},{"weekday":4,"hour":20,"count":13},{"weekday":4,"hour":21,"count":2},{"weekday":5,"hour":11,"count":45},{"weekday":5,"hour":12,"count":51},{"weekday":5,"hour":13,"count":59},{"weekday":5,"hour":14,"count":28},{"weekday":5,"hour":15,"count":24},{"weekday":5,"hour":16,"count":14},{"weekday":5,"hour":17,"count":21},{"weekday":5,"hour":18,"count":47},{"weekday":5,"hour":19,"count":43},{"weekday":5,"hour":20,"count":15},{"weekday":5,"hour":21,"count":5},{"weekday":6,"hour":0,"count":1},{"weekday":6,"hour":10,"count":3},{"weekday":6,"hour":11,"count":35},{"weekday":6,"hour":12,"count":64},{"weekday":6,"hour":13,"count":55},{"weekday":6,"hour":14,"count":48},{"weekday":6,"hour":15,"count":25},{"weekday":6,"hour":16,"count":19},{"weekday":6,"hour":17,"count":37},{"weekday":6,"hour":18,"count":68},{"weekday":6,"hour":19,"count":34},{"weekday":6,"hour":20,"count":15},{"weekday":6,"hour":21,"count":3}];
+const hours = [10,11,12,13,14,15,16,17,18,19,20,21];
+const days  = ['一','二','三','四','五','六','日'];
+const hmMap = {};
+heatmapData.forEach(d => { hmMap[`${d.weekday}_${d.hour}`] = d.count; });
+const maxCount = Math.max(...heatmapData.map(d=>d.count));
+function countColor(c) {
+  if (!c) return '#f9fafb';
+  const t = c / maxCount;
+  const r = Math.round(45 + (240-45)*(1-t));
+  const g = Math.round(106 + (249-106)*(1-t));
+  const b = Math.round(79 + (250-79)*(1-t));
+  return `rgb(${r},${g},${b})`;
+}
+const tbl = document.getElementById('heatmapTable');
+let hdr = '<tr><th>星期＼時</th>';
+hours.forEach(h => hdr += `<th>${h}時</th>`);
+hdr += '</tr>';
+tbl.innerHTML = hdr;
+for (let w=0; w<7; w++) {
+  let row = `<tr><th style="text-align:right;color:#374151;">週${days[w]}</th>`;
+  hours.forEach(h => {
+    const c = hmMap[`${w}_${h}`]||0;
+    const bg = countColor(c);
+    const fg = c > maxCount*0.5 ? '#fff' : '#374151';
+    row += `<td style="background:${bg};color:${fg};">${c||''}</td>`;
+  });
+  row += '</tr>';
+  tbl.innerHTML += row;
+}
+
+// ── 客單價 ──
+const bands = ['$0-200','$201-400','$401-600','$601-800','$800+'];
+const bandColors = ['#e5e7eb','#86efac','#4ade80','#16a34a','#15803d'];
+new Chart(document.getElementById('chartPriceBand'), {
+  type: 'doughnut',
+  data: { labels: bands, datasets: [{ data: [17.9,44.2,16.7,10.8,10.2],
+    backgroundColor: bandColors, borderWidth: 2, borderColor: '#fff' }] },
+  options: { plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+    cutout: '60%' }
+});
+new Chart(document.getElementById('chartPriceAvg'), {
+  type: 'bar',
+  data: { labels: bands, datasets: [{ data: [123,300,507,697,1241],
+    backgroundColor: bandColors, borderRadius: 5 }] },
+  options: { indexAxis: 'y', scales: { x: { ticks: { callback: v=>'$'+v } } } }
+});
+
+// ── TOP 品項 ──
+const topItems = [["嫩雞腿套餐",188,260],["漢堡排蛋包飯",166,330],["燉牛肉套餐",155,280],["炸豬排蛋包飯",144,300],["濾掛咖啡-單包",109,35],["厚切豬排丼",108,280],["美式早餐",97,350],["美式咖啡",85,70],["拿鐵",75,100],["濾掛咖啡(銀標)-單包",70,45],["親子丼",67,240],["鮮蝦櫛瓜麵",66,260],["銷魂雞腿飯",63,260],["日式炒烏龍麵",62,280],["味噌湯烏龍麵",55,180]];
+new Chart(document.getElementById('chartTopItems'), {
+  type: 'bar',
+  data: {
+    labels: topItems.map(d=>d[0]),
+    datasets: [{
+      label: '銷售數量',
+      data: topItems.map(d=>d[1]),
+      backgroundColor: topItems.map((d,i)=> i<4 ? BRAND : BRAND_L),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `銷量 ${ctx.raw} 份｜單價 $${topItems[ctx.dataIndex][2]}` } } },
+    scales: { x: { beginAtZero: true } }
+  }
+});
+
+// ── 品項組合 ──
+const pairs = [{"a":"嫩雞腿套餐","b":"炸豬排蛋包飯","count":15},{"a":"濾掛咖啡(銀標)-單包","b":"濾掛咖啡-單包","count":15},{"a":"嫩雞腿套餐","b":"燉牛肉套餐","count":14},{"a":"厚切豬排丼","b":"嫩雞腿套餐","count":13},{"a":"厚切豬排丼","b":"美式早餐","count":13},{"a":"漢堡排蛋包飯","b":"炸豬排蛋包飯","count":12},{"a":"嫩雞腿套餐","b":"漢堡排蛋包飯","count":12},{"a":"厚切豬排丼","b":"鮮蝦櫛瓜麵","count":11}];
+const pg = document.getElementById('pairsGrid');
+pairs.forEach((p,i) => {
+  pg.innerHTML += `<div class="pair-card">
+    <div class="pair-rank">${i+1}</div>
+    <div class="pair-items">
+      <div class="name">${p.a}</div>
+      <div class="plus">＋</div>
+      <div class="name">${p.b}</div>
+    </div>
+    <div class="pair-badge">同點 ${p.count} 次</div>
+  </div>`;
+});
+
+// ── 天氣品項 ──
+const rainTop = [{"item":"燉牛肉套餐","rain":10.6,"sun":7.7},{"item":"嗆鍋麵","rain":4.8,"sun":2.4},{"item":"焦糖布丁","rain":2.1,"sun":1.0},{"item":"雞肉櫛瓜麵","rain":2.1,"sun":1.2},{"item":"荷包蛋","rain":2.1,"sun":1.4},{"item":"泡菜豬肉丼","rain":1.2,"sun":0.5}];
+const rainBot = [{"item":"鮮蝦櫛瓜麵","rain":0.6,"sun":4.2},{"item":"拿鐵","rain":2.1,"sun":3.8},{"item":"銷魂雞腿飯","rain":2.1,"sun":3.6},{"item":"美式早餐","rain":3.9,"sun":5.5},{"item":"嫩雞腿套餐","rain":8.8,"sun":10.3},{"item":"炸廣島牡蠣套餐(2顆)","rain":0.0,"sun":1.3}];
+const tbody1 = document.getElementById('rainItemsTop');
+rainTop.forEach(d => {
+  tbody1.innerHTML += `<tr><td><span class="tag-rain">☔</span> ${d.item}</td>
+    <td><strong>${d.rain}%</strong></td><td style="color:#9ca3af">${d.sun}%</td></tr>`;
+});
+const tbody2 = document.getElementById('rainItemsBot');
+rainBot.forEach(d => {
+  tbody2.innerHTML += `<tr><td><span class="tag-sun">☀️</span> ${d.item}</td>
+    <td><strong>${d.sun}%</strong></td><td style="color:#9ca3af">${d.rain}%</td></tr>`;
+});
+
+// ── 春節每日 ──
+const cnyDaily = [{"label":"02/16(週一)","orders":1,"revenue":630,"avg":630},{"label":"02/20(週五)","orders":30,"revenue":14360,"avg":479},{"label":"02/21(週六)","orders":24,"revenue":11420,"avg":476},{"label":"02/22(週日)","orders":31,"revenue":15860,"avg":512}];
+const cnyColors = ['#fca5a5','#86efac','#86efac','#4ade80'];
+new Chart(document.getElementById('chartCnyDaily'), {
+  type: 'bar',
+  data: {
+    labels: cnyDaily.map(d=>d.label),
+    datasets: [
+      { label: '訂單數', data: cnyDaily.map(d=>d.orders), backgroundColor: cnyColors, borderRadius: 5 },
+    ]
+  },
+  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+// CNY items
+const cnyItems = [{"item":"炸豬排蛋包飯","cny_rate":12.8,"norm_rate":7.4},{"item":"鮮蝦櫛瓜麵","cny_rate":11.6,"norm_rate":3.1},{"item":"漢堡排蛋包飯","cny_rate":11.6,"norm_rate":8.6},{"item":"嫩雞腿套餐","cny_rate":10.5,"norm_rate":10.0},{"item":"厚切豬排丼","cny_rate":9.3,"norm_rate":5.5},{"item":"沖繩塔可飯","cny_rate":9.3,"norm_rate":2.4},{"item":"美式早餐","cny_rate":8.1,"norm_rate":5.0}];
+new Chart(document.getElementById('chartCnyItems'), {
+  type: 'bar',
+  data: {
+    labels: cnyItems.map(d=>d.item),
+    datasets: [
+      { label: '春節%', data: cnyItems.map(d=>d.cny_rate), backgroundColor: BRAND, borderRadius: [4,4,0,0] },
+      { label: '平時%', data: cnyItems.map(d=>d.norm_rate), backgroundColor: '#d1fae5', borderRadius: [4,4,0,0] },
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } },
+    scales: { x: { stacked: false, ticks: { callback: v=>v+'%' } } }
+  }
+});
+
+// CNY 日期明細
+const cnyTable = document.getElementById('cnyDayTable');
+const cnyAllDays = [
+  {label:'02/16(除夕·週一)',orders:1,revenue:630,avg:630,note:'幾乎公休，1筆訂單',closed:false},
+  {label:'02/17(初一·週二)',orders:0,revenue:0,avg:0,note:'公休',closed:true},
+  {label:'02/18(初二·週三)',orders:0,revenue:0,avg:0,note:'公休',closed:true},
+  {label:'02/19(初三·週四)',orders:0,revenue:0,avg:0,note:'公休',closed:true},
+  {label:'02/20(初四·週五)',orders:30,revenue:14360,avg:479,note:'🎉 復業！立即回彈',closed:false},
+  {label:'02/21(初五·週六)',orders:24,revenue:11420,avg:476,note:'週六穩定',closed:false},
+  {label:'02/22(初六·週日)',orders:31,revenue:15860,avg:512,note:'週日高峰，本週最高',closed:false},
+];
+cnyAllDays.forEach(d => {
+  if (d.closed) {
+    cnyTable.innerHTML += `<tr class="closed-row"><td>${d.label}</td><td class="closed">公休</td><td>—</td><td>—</td><td>—</td><td style="color:#dc2626">${d.note}</td></tr>`;
+  } else {
+    cnyTable.innerHTML += `<tr><td>${d.label}</td><td style="color:#16a34a;font-weight:600;">營業</td><td>${d.orders}</td><td>$${d.revenue.toLocaleString()}</td><td>$${d.avg}</td><td style="color:#374151">${d.note}</td></tr>`;
+  }
+});
+</script>
+</body>
+</html>
